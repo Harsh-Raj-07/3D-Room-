@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Harsh's Little Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#3a2a1c; --ink-soft:#6b5340; --paper:#f7ecd9; --paper-deep:#efdfc4;
+  --accent:#b4552d; --accent-deep:#8f3f20; --honey:#d9a441; --night-ink:#e8ddc9;
+  --serif:"Fraunces",Georgia,"Songti SC",serif; --sans:"Karla",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#2a1e14;font-family:var(--sans);color:var(--ink)}
+#stage{position:fixed;inset:0}
+canvas{display:block;touch-action:none}
+
+/* ---------- poster fallback ---------- */
+#poster{position:fixed;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(120% 90% at 50% 110%, #7a4a28 0%, #4a2f1a 55%, #241609 100%);
+  transition:opacity .8s ease;}
+#poster.gone{opacity:0;pointer-events:none}
+#poster .card{text-align:center;color:#f3e4c8;padding:24px;max-width:320px}
+#poster h1{font-family:var(--serif);font-weight:700;font-size:28px;margin:0 0 6px;letter-spacing:.02em}
+#poster p{margin:0;font-size:14px;opacity:.75}
+#poster .lamp{width:10px;height:10px;border-radius:50%;background:#ffd98a;margin:18px auto 0;
+  box-shadow:0 0 40px 14px rgba(255,196,110,.55);animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{50%{box-shadow:0 0 60px 22px rgba(255,196,110,.75)}}
+@media (prefers-reduced-motion:reduce){#poster .lamp{animation:none}}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;z-index:5;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;
+  padding:calc(12px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));}
+#hud .row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+#brand{pointer-events:auto;background:color-mix(in srgb,var(--paper) 88%, transparent);
+  backdrop-filter:blur(6px);border:1px solid rgba(58,42,28,.18);border-radius:14px;padding:10px 16px;
+  box-shadow:0 4px 18px rgba(20,10,4,.35);max-width:min(66vw,340px)}
+#brand h1{font-family:var(--serif);font-size:17px;margin:0;line-height:1.2}
+#brand p{margin:3px 0 0;font-size:12px;color:var(--ink-soft)}
+#controls{display:flex;gap:8px;pointer-events:auto}
+.btn{min-height:44px;min-width:44px;border:1px solid rgba(58,42,28,.22);border-radius:12px;cursor:pointer;
+  background:color-mix(in srgb,var(--paper) 90%, transparent);backdrop-filter:blur(6px);
+  color:var(--ink);font:600 13px/1 var(--sans);padding:0 14px;display:inline-flex;align-items:center;gap:8px;
+  box-shadow:0 4px 18px rgba(20,10,4,.35);transition:transform .15s ease,background .15s ease}
+.btn:hover{background:var(--paper);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn:focus-visible{outline:3px solid var(--honey);outline-offset:2px}
+.btn.icon-only{padding:0;justify-content:center}
+.btn svg{width:18px;height:18px;flex:none}
+.btn.active{background:var(--accent);border-color:var(--accent-deep);color:#fff4e4}
+#hint{pointer-events:none;position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(16px + env(safe-area-inset-bottom));z-index:6;background:rgba(30,18,8,.62);color:#f3e4c8;
+  font-size:12.5px;letter-spacing:.03em;padding:9px 16px;border-radius:999px;backdrop-filter:blur(4px);
+  transition:opacity .6s ease;text-align:center;max-width:92vw}
+#hint.gone{opacity:0}
+#legend{pointer-events:auto;align-self:flex-end;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:60vw}
+.chip{background:rgba(30,18,8,.55);color:#f3e4c8;border:1px solid rgba(255,230,190,.18);border-radius:999px;
+  font-size:11.5px;padding:7px 12px;backdrop-filter:blur(4px)}
+.btn .short{display:none}
+@media (max-width:640px){
+  #legend{display:none} #brand p{display:none}
+  #brand{padding:8px 12px;max-width:44vw}
+  #brand h1{font-size:14px}
+  .btn{padding:0 10px;font-size:12px}
+  .btn .long{display:none}
+  .btn .short{display:inline}
+}
+
+/* ---------- story modal ---------- */
+#modal-wrap{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:18px}
+#modal-wrap.open{display:flex}
+#modal-backdrop{position:absolute;inset:0;background:rgba(24,13,5,.55);backdrop-filter:blur(3px)}
+#modal{position:relative;width:min(560px,100%);max-height:min(78dvh,640px);overflow:auto;border-radius:18px;
+  background:
+    radial-gradient(140% 100% at 20% 0%, #fffaf0 0%, var(--paper) 45%, var(--paper-deep) 100%);
+  border:1px solid rgba(58,42,28,.25);box-shadow:0 24px 70px rgba(15,7,2,.55), inset 0 0 60px rgba(180,140,90,.12);
+  padding:26px 26px 20px;transform:scale(.95) translateY(8px);opacity:0;transition:transform .22s ease,opacity .22s ease}
+#modal-wrap.open #modal{transform:none;opacity:1}
+#modal::before{content:"";position:absolute;inset:9px;border:1.5px dashed rgba(139,95,54,.4);border-radius:12px;pointer-events:none}
+#modal .kicker{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+#modal h2{font-family:var(--serif);font-size:24px;margin:0 0 2px;line-height:1.15}
+#modal .sub{font-size:13.5px;color:var(--ink-soft);margin:0 0 14px;font-weight:600}
+#modal .body{font-size:15px;line-height:1.7;white-space:pre-wrap}
+#modal .body[contenteditable="true"]{outline:2px dashed var(--accent);outline-offset:6px;border-radius:4px;background:rgba(255,255,255,.5)}
+#modal .field{margin-bottom:4px}
+#modal-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.btn.small{min-height:40px;padding:0 14px;font-size:12.5px;border-radius:10px}
+.btn.primary{background:var(--accent);border-color:var(--accent-deep);color:#fff4e4}
+.btn.primary:hover{background:#c6623a}
+#modal .note{margin-top:14px;font-size:11.5px;color:var(--ink-soft);opacity:.8}
+#modal-close{position:absolute;top:10px;right:10px;z-index:2}
+#stamp{position:absolute;top:16px;right:52px;width:54px;height:64px;border:1px solid rgba(58,42,28,.3);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;transform:rotate(4deg);
+  background:repeating-linear-gradient(0deg,#fdf6e8 0 6px,#f6ead2 6px 7px);color:var(--accent);font-family:var(--serif);font-size:9px;text-align:center;line-height:1.3}
+#playrow{display:flex;align-items:center;gap:10px;margin-top:14px;background:rgba(180,85,45,.08);border:1px solid rgba(180,85,45,.25);border-radius:12px;padding:10px 12px}
+#playrow[hidden]{display:none}
+#playrow .eq{display:none;gap:2.5px;align-items:flex-end;height:16px}
+#playrow .eq span{width:3px;background:var(--accent);border-radius:2px;animation:eq 0.9s ease-in-out infinite}
+#playrow .eq span:nth-child(2){animation-delay:.15s}#playrow .eq span:nth-child(3){animation-delay:.3s}#playrow .eq span:nth-child(4){animation-delay:.45s}
+#playrow.playing .eq{display:flex}
+@keyframes eq{0%,100%{height:5px}50%{height:16px}}
+#playrow p{margin:0;font-size:12.5px;color:var(--ink-soft);flex:1}
+@media (prefers-reduced-motion:reduce){#modal,#modal-wrap *{transition:none!important;animation:none!important}}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);
+  z-index:30;background:rgba(30,18,8,.85);color:#f3e4c8;font-size:13px;padding:10px 18px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div id="poster" aria-hidden="true">
+  <div class="card">
+    <h1>Harsh's Little Room</h1>
+    <p>a tiny 3D room of books, records &amp; postcards</p>
+    <div class="lamp"></div>
+  </div>
+</div>
+
+<div id="stage"></div>
+
+<div id="hud">
+  <div class="row">
+    <div id="brand">
+      <h1>Harsh's Little Room</h1>
+      <p>an example room — every story is yours to rewrite</p>
+    </div>
+    <div id="controls">
+      <button class="btn" id="btn-night" aria-pressed="false" title="Toggle day / night">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path id="sunrays" d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19"/></svg>
+        <span id="night-label">Night</span>
+      </button>
+      <button class="btn" id="btn-reset" title="Restore example stories"><span class="long">Reset stories</span><span class="short">Reset</span></button>
+    </div>
+  </div>
+  <div id="legend">
+    <span class="chip">Bookshelf — tap a book</span>
+    <span class="chip">Record corner — tap the player</span>
+    <span class="chip">Postcard wall — tap a card</span>
+  </div>
+</div>
+
+<div id="hint">Drag to look around · scroll or pinch to zoom · tap objects to read their stories</div>
+
+<div id="modal-wrap" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div id="modal-backdrop"></div>
+  <div id="modal">
+    <div id="stamp" hidden>PAR AVION</div>
+    <button class="btn icon-only small" id="modal-close" aria-label="Close story">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <p class="kicker" id="modal-kicker"></p>
+    <h2 id="modal-title"></h2>
+    <p class="sub" id="modal-sub"></p>
+    <div class="body" id="modal-body"></div>
+    <div id="playrow" hidden>
+      <button class="btn small primary" id="btn-play">Play</button>
+      <div class="eq"><span></span><span></span><span></span><span></span></div>
+      <p>a soft instrumental loop — music only plays when you ask it to</p>
+    </div>
+    <div id="modal-actions">
+      <button class="btn small" id="btn-edit">Edit this story</button>
+    </div>
+    <p class="note">Your edits are saved in this browser only.</p>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script type="module" src="./src/scene.js"></script>
+</body>
+</html>
